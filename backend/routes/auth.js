@@ -45,4 +45,44 @@ router.post("/signup", async (req, res) => {
   }
 });
 
+router.post("/login", async (req, res) => {
+    const { email, password } = req.body;
+  
+    // Vérification des champs
+    if (!email || !password) {
+      return res.status(400).json({ error: "Champs manquants" });
+    }
+  
+    try {
+      // Recherche de l'utilisateur par email
+      const result = await pool.query(
+        "SELECT * FROM users WHERE email = $1",
+        [email]
+      );
+  
+      if (result.rows.length === 0) {
+        return res.status(401).json({ error: "Email ou mot de passe incorrect" });
+      }
+  
+      const user = result.rows[0];
+  
+      // Vérification du mot de passe
+      const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+      if (!isPasswordValid) {
+        return res.status(401).json({ error: "Email ou mot de passe incorrect" });
+      }
+  
+      // Génération du token
+      const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
+        expiresIn: "1d",
+      });
+  
+      res.status(200).json({ token, pseudo: user.pseudo });
+    } catch (err) {
+      console.error("❌ Erreur lors de la connexion :", err);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+  
+
 module.exports = router;

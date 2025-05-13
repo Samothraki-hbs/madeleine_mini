@@ -9,33 +9,60 @@ import {
   KeyboardAvoidingView,
   Platform
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BACKEND_URL } from "../config"; // j'appelle ma fonction Backend url pour me connecter au serveur, depuis ma page config
 
 export default function Connexion({ navigation }) { //navigation doit être passé en argument ici afin de pouvoir naviguer entre les différentes pages 
   const [email, setEmail] = useState("");
-  const [motDePasse, setMotDePasse] = useState("");
+  const [password, setPassword] = useState(""); //il faut les noms exacts des champs ! 
 
   const seConnecter = async () => {
-    if (!email || !motDePasse) {
+    if (!email || !password) {
       Alert.alert("Erreur", "Merci de remplir tous les champs."); // pourquoi utiliser Alert.alert et non alert tout court ?
       return;
     }
 
+  const handleDeconnexion = async () => {
     try {
-      const response = await fetch(`${BACKEND_URL}/login`, { // fetch permet d'envoyer une requête HTTP vers un serveur
+      // supprimer le token du storage local
+      await AsyncStorage.removeItem("token");
+
+      // redirection vers la page Connexion
+      navigation.replace("connexion");
+
+    } catch(err) {
+      console.error("Erreur lors de la déconnexion", err);
+    };
+  return(
+    <View style={styles.container}>
+    <Text style={styles.titre}>Bienvenue dans DropPictureOf</Text>
+
+    {/* 🔘 Bouton de déconnexion */}
+    <Button title="Se déconnecter" onPress={handleDeconnexion} />
+  </View>
+);
+  }
+
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/login`, { // fetch permet d'envoyer une requête HTTP vers un serveur
         method: "POST", // ici, la méthode que j'utilise est POST : je veux envoyer des données 
         headers: { "Content-Type": "application/json" }, // j'indique au serveur que j'envoie mes données en JSON
-        body: JSON.stringify({ email, motDePasse }), // je transforme mes données en une chaîne de caractères ! 
+        body: JSON.stringify({ email, password }), // je transforme mes données en une chaîne de caractères ! 
       });
 
       const data = await response.json(); /* pourquoi transformer la requête en JSON  ? Réponse : cela permet d'ouvrir
       le contenu de l'enveloppe que j'ai envoyé. Sans cela, je tombe sur une erreur */
+      console.log("CODE HTTP", response.status);
+      console.log("DATA RECUE", data);
 
       if (response.ok) { /* response.ok a un lien avec fetch, et réponds true et false */
-        navigation.navigate("AccueilUtilisateur", {
-          mail: email,
+        await AsyncStorage.setItem("token", data.token); // stockage local du token 
+
+        navigation.navigate("Accueil", {
+          email: email,
           pseudo: data.pseudo,
-          motDePasse,
+          password,
         });
       } else {
         Alert.alert("Erreur", data.message || "Identifiants incorrects."); /* à quoi correspond data.message ici ? */
@@ -65,8 +92,8 @@ export default function Connexion({ navigation }) { //navigation doit être pass
         <TextInput
           style={styles.input}
           placeholder="Mot de passe"
-          value={motDePasse}
-          onChangeText={setMotDePasse}
+          value={password}
+          onChangeText={setPassword}
           secureTextEntry
         />
 
@@ -74,7 +101,7 @@ export default function Connexion({ navigation }) { //navigation doit être pass
           <Text style={styles.buttonText}>Se connecter</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => navigation.navigate("Accueil")}> 
+        <TouchableOpacity onPress={() => navigation.navigate("Inscription")}> 
           <Text style={styles.switch}>Pas encore de compte ? S’inscrire</Text>
         </TouchableOpacity>
       </View>

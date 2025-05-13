@@ -1,175 +1,110 @@
-import { useState } from "react";
+import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
-  StyleSheet,
-  TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
+  Button,
+  Image,
   Alert,
-} from "react-native";
+  StyleSheet,
+  ScrollView, // ✅ import ScrollView
+} from 'react-native';
+import { useNavigation } from "@react-navigation/native";
+import * as ImagePicker from 'expo-image-picker';
 
-// Vérification de l’email avec une expression régulière
-function validerEmail(email) {
-  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return regex.test(email);
-}
+export default function Accueil({ route }) {
+  const { email, pseudo } = route.params;
+  const [imageUri, setImageUri] = useState(null);
+  const navigation = useNavigation();
 
-export default function Accueil({ navigation }) {
-  const [email, setEmail] = useState("");
-  const [pseudo, setPseudo] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmation, setConfirmation] = useState("");
-
-  // ✅ Fonction de validation avant envoi
-  const validerInscription = () => {
-    console.log("📌 [validerInscription] Début de la validation");
-  
-    if (!validerEmail(email)) {
-      console.log("❌ Email invalide :", email);
-      Alert.alert("Erreur", "Adresse email invalide");
+  const pickImage = async () => {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permissionResult.granted) {
+      Alert.alert("Permission refusée", "L'application a besoin d'accéder à votre galerie.");
       return;
     }
-  
-    if (pseudo.length < 5) {
-      console.log("❌ Pseudo trop court :", pseudo);
-      Alert.alert("Erreur", "Le pseudo doit contenir au moins 5 caractères");
-      return;
-    }
-  
-    if (password !== confirmation) {
-      console.log("❌ Mots de passe différents");
-      Alert.alert("Erreur", "Les mots de passe ne correspondent pas");
-      return;
-    }
-  
-    console.log("✅ Validation réussie, on appelle handleSignup()");
-    handleSignup();
-  };
-  
-  const handleSignup = async () => {
-    console.log("📡 [handleSignup] Envoi de la requête au backend...");
-    /* ici le problème */
-    try {
-      const response = await fetch("http://192.168.0.12:4000/api/signup", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email,
-          pseudo,
-          password,
-        }),
-      });
-  
-      console.log("✅ Requête envoyée, en attente de réponse...");
-  
-      const data = await response.json();
-  
-      console.log("📨 Réponse reçue :", data);
-  
-      if (response.ok) {
-        Alert.alert("Succès", "Inscription réussie !");
-        console.log("✅ Inscription réussie, navigation...");
-        navigation.navigate("AccueilUtilisateur", { pseudo });
-      } else {
-        console.log("❌ Erreur API :", data.error);
-        Alert.alert("Erreur", data.error || "Erreur lors de l’inscription");
-      }
-    } catch (error) {
-      console.log("🔥 Erreur réseau :", error.message);
-      Alert.alert("Erreur", "Impossible de contacter le serveur.");
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      setImageUri(result.assets[0].uri);
     }
   };
-  
-  // ✅ Requête HTTP vers ton backend Express
+
+  // 🧪 Affiche le lien de l’image sélectionnée dans la console
+  console.log("imageUri :", imageUri);
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={{ flex: 1 }}
-    >
-      <View style={styles.container}>
-        <Text style={styles.title}>Inscription</Text>
+    <ScrollView contentContainerStyle={styles.container}>
+      <Text style={styles.titre}>Bienvenue {pseudo} !</Text>
 
-        <TextInput
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-          placeholder="Entrez votre adresse email"
-          keyboardType="email-address"
-        />
+      <Text style={styles.label}>Adresse email :</Text>
+      <Text style={styles.value}>{email}</Text>
 
-        <TextInput
-          style={styles.input}
-          value={pseudo}
-          onChangeText={setPseudo}
-          placeholder="Choisissez un pseudo"
-        />
+      <View style={styles.separator} />
 
-        <TextInput
-          style={styles.input}
-          value={password}
-          onChangeText={setPassword}
-          placeholder="Mot de passe"
-          secureTextEntry={true}
-        />
+      <Button title="Choisir une image" onPress={pickImage} />
 
-        <TextInput
-          style={styles.input}
-          value={confirmation}
-          onChangeText={setConfirmation}
-          placeholder="Confirmez le mot de passe"
-          secureTextEntry={true}
-        />
-
-        <TouchableOpacity style={styles.button} onPress={validerInscription}>
-          <Text style={styles.buttonText}>Créer mon compte</Text>
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+      {imageUri && (
+        <>
+          <Text style={styles.label}>Prévisualisation :</Text>
+          <Image source={{ uri: imageUri }} style={styles.image} />
+          <View style={{ alignItems: "center", marginTop: 30 }}>
+            <Text style={styles.label}>Voir en plein écran :</Text>
+            <Button
+              title="Afficher"
+              onPress={() =>
+                navigation.navigate("Photo", {
+                  imageUri: imageUri,
+                  pseudo: pseudo,
+                  legend: "Photo sélectionnée",
+                })
+              }
+            />
+          </View>
+        </>
+      )}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     padding: 20,
-    backgroundColor: "#f4f4f4",
-    flex: 1,
-    justifyContent: "center",
+    backgroundColor: 'white',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    flexGrow: 1,
   },
-  title: {
-    fontSize: 26,
-    fontWeight: "bold",
-    marginBottom: 30,
-    textAlign: "center",
-    color: "#333",
+  titre: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    textAlign: 'center',
+    color: '#333',
   },
-  input: {
-    backgroundColor: "white",
-    padding: 12,
-    marginBottom: 15,
-    borderRadius: 8,
-    borderColor: "#ccc",
-    borderWidth: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
+  label: {
+    fontWeight: '600',
+    marginTop: 15,
+    color: '#555',
   },
-  button: {
-    backgroundColor: "#3498db",
-    padding: 14,
-    borderRadius: 8,
-    alignItems: "center",
-    marginTop: 10,
-  },
-  buttonText: {
-    color: "white",
-    fontWeight: "bold",
+  value: {
+    marginBottom: 10,
     fontSize: 16,
+    color: '#111',
+  },
+  image: {
+    width: 300,
+    height: 300,
+    marginVertical: 15,
+    borderRadius: 10,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: '#ccc',
+    marginVertical: 20,
+    width: "100%",
   },
 });
